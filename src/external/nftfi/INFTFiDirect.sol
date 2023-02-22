@@ -233,9 +233,9 @@ interface INftFiDirect {
      * @param _borrowerSettings - Some extra parameters that the borrower needs to set when accepting an offer.
      */
     function acceptOffer(
-        Offer memory _offer,
-        Signature memory _signature,
-        BorrowerSettings memory _borrowerSettings
+        LoanData.Offer memory _offer,
+        LoanData.Signature memory _signature,
+        LoanData.BorrowerSettings memory _borrowerSettings
     ) external;
 
     /**
