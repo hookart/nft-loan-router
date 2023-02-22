@@ -212,6 +212,8 @@ interface LoanData {
 }
 
 interface INftFiDirect {
+    function LOAN_COORDINATOR() external returns (bytes32);
+
     function loanRepaidOrLiquidated(uint32) external view returns (bool);
 
     /**

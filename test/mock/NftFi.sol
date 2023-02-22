@@ -2,6 +2,7 @@
 pragma solidity ^0.8.5;
 
 import "../../src/external/nftfi/INftFiDirect.sol";
+import "../../src/external/nftfi/INftFiHub.sol";
 import "../../src/external/nftfi/INFTFIDirectLoanCoordinator.sol";
 import "solmate/tokens/ERC721.sol";
 import "solmate/tokens/ERC20.sol";
@@ -27,6 +28,67 @@ contract NFTFIERC721 is ERC721 {
 
     function burn(uint256 id) public {
         _burn(id);
+    }
+}
+
+contract NftfiHub is INftfiHub {
+    /* ******* */
+    /* STORAGE */
+    /* ******* */
+
+    mapping(bytes32 => address) private contracts;
+
+    /* ********* */
+    /* FUNCTIONS */
+    /* ********* */
+
+    /**
+     * @notice Set or update the contract address for the given key.
+     * @param _contractKey - New or existing contract key.
+     * @param _contractAddress - The associated contract address.
+     */
+    function setContract(string calldata _contractKey, address _contractAddress)
+        external
+        override
+    {
+        _setContract(_contractKey, _contractAddress);
+    }
+
+    /**
+     * @notice This function can be called by anyone to lookup the contract address associated with the key.
+     * @param  _contractKey - The index to the contract address.
+     */
+    function getContract(bytes32 _contractKey)
+        external
+        view
+        override
+        returns (address)
+    {
+        return contracts[_contractKey];
+    }
+
+    function getIdFromStringKey(string memory _key)
+        internal
+        pure
+        returns (bytes32 id)
+    {
+        require(bytes(_key).length <= 32, "invalid key");
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            id := mload(add(_key, 32))
+        }
+    }
+
+    /**
+     * @notice Set or update the contract address for the given key.
+     * @param _contractKey - New or existing contract key.
+     * @param _contractAddress - The associated contract address.
+     */
+    function _setContract(string memory _contractKey, address _contractAddress)
+        internal
+    {
+        contracts[getIdFromStringKey(_contractKey)] = _contractAddress;
     }
 }
 
@@ -95,6 +157,14 @@ contract DirectLoanCoordinator is INFTFIDirectLoanCoordinator {
         return loans[_loanId];
     }
 
+    function registerLoan(
+        address _lender,
+        bytes32 _loanType,
+        uint256 loanId
+    ) external override returns (uint32) {
+        return uint32(loanId);
+    }
+
     /**
      * @dev checks if the given id is valid for the given loan contract address
      * @param _loanId - Id of the loan
@@ -115,11 +185,33 @@ contract NftFiMock is INftFiDirect {
     NFTFIERC721 private obligationReciept;
     uint256 private loanId = 0;
 
+    bytes32 public immutable override LOAN_COORDINATOR;
+    INftfiHub public immutable hub;
+    // hub.getContract(LOAN_COORDINATOR);
+
     mapping(uint256 => LoanData.LoanTerms) private loans;
 
     constructor() {
         promNote = new NFTFIERC721("prom note", "PROM");
         obligationReciept = new NFTFIERC721("obligationReciept", "OBLIG");
+        DirectLoanCoordinator coordinator = new DirectLoanCoordinator();
+        coordinator.initialize(address(promNote), address(obligationReciept));
+        LOAN_COORDINATOR = getIdFromStringKey("DIRECT_LOAN_COORDINATOR");
+        hub = new NftfiHub();
+        hub.setContract("DIRECT_LOAN_COORDINATOR", address(coordinator));
+    }
+
+    function getIdFromStringKey(string memory _key)
+        internal
+        pure
+        returns (bytes32 id)
+    {
+        require(bytes(_key).length <= 32, "invalid key");
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            id := mload(add(_key, 32))
+        }
     }
 
     function getPayoffAmount(uint32 _loanId)
@@ -209,6 +301,15 @@ contract NftFiMock is INftFiDirect {
             _signature.signer,
             msg.sender,
             _offer.loanPrincipalAmount
+        );
+
+        INFTFIDirectLoanCoordinator loanCoordinator = INFTFIDirectLoanCoordinator(
+                hub.getContract(LOAN_COORDINATOR)
+            );
+        loanCoordinator.registerLoan(
+            _signature.signer,
+            getIdFromStringKey("no"),
+            loanId
         );
         promNote.mint(_signature.signer, loanId);
         obligationReciept.mint(msg.sender, loanId);

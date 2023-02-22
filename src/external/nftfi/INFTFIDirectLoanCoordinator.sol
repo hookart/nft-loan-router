@@ -35,6 +35,12 @@ interface INFTFIDirectLoanCoordinator {
 
     function getLoanData(uint32 _loanId) external view returns (Loan memory);
 
+    function registerLoan(
+        address _lender,
+        bytes32 _loanType,
+        uint256 loanId
+    ) external returns (uint32);
+
     function isValidLoanId(uint32 _loanId, address _loanContract)
         external
         view
