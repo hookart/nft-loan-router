@@ -2,6 +2,7 @@
 pragma solidity ^0.8.5;
 
 import "../../src/external/nftfi/INftFiDirect.sol";
+import "../../src/external/nftfi/INFTFIDirectLoanCoordinator.sol";
 import "solmate/tokens/ERC721.sol";
 import "solmate/tokens/ERC20.sol";
 
@@ -26,6 +27,86 @@ contract NFTFIERC721 is ERC721 {
 
     function burn(uint256 id) public {
         _burn(id);
+    }
+}
+
+contract DirectLoanCoordinator is INFTFIDirectLoanCoordinator {
+    /**
+     * @dev reverse mapping of loanTypes - for each contract address, records the associated loan type
+     */
+    mapping(address => bytes32) private contractTypes;
+
+    bool private _initialized = false;
+
+    mapping(uint32 => Loan) private loans;
+
+    address public override promissoryNoteToken;
+    address public override obligationReceiptToken;
+
+    modifier onlyInitialized() {
+        require(_initialized, "not initialized");
+
+        _;
+    }
+
+    /* *********** */
+    /* CONSTRUCTOR */
+    /* *********** */
+
+    constructor() {}
+
+    function initialize(
+        address _promissoryNoteToken,
+        address _obligationReceiptToken
+    ) external {
+        require(
+            _promissoryNoteToken != address(0),
+            "promissoryNoteToken is zero"
+        );
+        require(
+            _obligationReceiptToken != address(0),
+            "obligationReceiptToken is zero"
+        );
+
+        _initialized = true;
+        promissoryNoteToken = _promissoryNoteToken;
+        obligationReceiptToken = _obligationReceiptToken;
+    }
+
+    function mintObligationReceipt(uint32 _loanId, address _borrower)
+        external
+        override
+        onlyInitialized
+    {
+        // not implemented
+    }
+
+    /**
+     * @dev Returns loan's data for a given id.
+     *
+     * @param _loanId - Id of the loan
+     */
+    function getLoanData(uint32 _loanId)
+        external
+        view
+        override
+        returns (Loan memory)
+    {
+        return loans[_loanId];
+    }
+
+    /**
+     * @dev checks if the given id is valid for the given loan contract address
+     * @param _loanId - Id of the loan
+     * @param _loanContract - address og the loan contract
+     */
+    function isValidLoanId(uint32 _loanId, address _loanContract)
+        external
+        view
+        override
+        returns (bool validity)
+    {
+        validity = loans[_loanId].loanContract == _loanContract;
     }
 }
 

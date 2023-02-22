@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.5;
 
+import "./external/reservior/IReserviorRouterV6.sol";
+
 contract RepayAndSellNftFi {
-    function repayAndSell(uint256 loanNumber, order) public {
+    function repayAndSell(
+        uint256 loanNumber,
+        ReservoirV6.ExecutionInfo[] calldata saleExecutionInfos
+    ) public {
         // (1) verify that the owner owns loan number, that it is not already repaid or liquidate
         // (2) verify that this contract address(this) is approved to move the borrower note
         // (3) verify that the order is valid to sell the loan to
