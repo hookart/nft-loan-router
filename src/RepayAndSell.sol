@@ -6,65 +6,73 @@ import "./external/euler-xyz/Interfaces.sol";
 import "./external/nftfi/INFTFiDirect.sol";
 import "./external/nftfi/INFTFIDirectLoanCoordinator.sol";
 import "./external/nftfi/INFTFIHub.sol";
-import "solmate/tokens/ERC721.sol";
+import "../lib/solmate/src/tokens/ERC721.sol";
+import "./Constants.sol";
 
-contract RepayAndSellNftFi {
-    // TODO: these are temporary values, change to actual addresses
-    address internal constant WETH_ADDR =
-        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address internal constant EULER_ADDR =
-        0x27182842E098f60e3D576794A5bFFb0777E025d3;
+contract RepayAndSellNftFi is Constants {
+    INftFiDirect nftFi;
+    INFTFIDirectLoanCoordinator coord;
+    ReservoirV6 reservoir;
 
-    // set the lender to the euler flashloan contract
-    IERC3156FlashLender internal constant lender =
-        IERC3156FlashLender(EULER_ADDR);
-
-    INftFiDirect nftFi =
-        INftFiDirect(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    INFTFIDirectLoanCoordinator coord =
-        INFTFIDirectLoanCoordinator(
-            INftfiHub(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).getContract(
+    constructor() {
+        nftFi = INftFiDirect(NFTFI_DIRECT_LOAN_COORDINATOR_ADDR);
+        coord = INFTFIDirectLoanCoordinator(
+            INftfiHub(NFTFI_DIRECT_LOAN_COORDINATOR_ADDR).getContract(
                 nftFi.LOAN_COORDINATOR()
             )
         );
+        reservoir = ReservoirV6(RESERVOIR_V6_ADDR);
+    }
 
     function repayAndSell(
-        uint256 loanNumber,
-        ReservoirV6.ExecutionInfo[] calldata saleExecutionInfos
+        uint32 loanId,
+        ReservoirV6.ExecutionInfo[] calldata saleExecutionInfos,
+        address token
     ) public {
+        // also make sure that our proxy contract is allowed to use token with NFTFi
+
         // (1) verify that the owner owns loan number, that it is not already repaid or liquidate
         require(
-            nftFi.loanRepaidOrLiquidated(loanNumber) == false,
+            nftFi.loanRepaidOrLiquidated(loanId) == false,
             "loan already repaid or liquidated"
         );
 
-        loanData = coord.getLoanData(loanNumber);
-        address obligationReceiptOwner = ERC721(coord.obligationReceiptToken())
-            .ownerOf();
+        INFTFIDirectLoanCoordinator.Loan memory loanData = coord.getLoanData(
+            loanId
+        );
+        ERC721 obligation = ERC721(coord.obligationReceiptToken());
         require(
-            obligationReceiptOwner == msg.sender,
+            obligation.ownerOf(loanData.smartNftId) == msg.sender,
             "only the owner of the loan can repay and sell"
         );
 
         // (2) verify that this contract address(this) is approved to move the borrower note
-        // (3) verify that the order is valid to sell the loan to
-        // (3.5) verify that the order is worth more than the repayment amount.
-        uint256 payoffAmount = nftFi.getPayoffAmount(loanNumber);
+        obligation.isApprovedForAll(msg.sender, address(this));
 
-        // (4) flashloan some money to do the repayment (figure out how much from the loan contract?)
+        // (3) flashloan some money to do the repayment (figure out how much from the loan contract?)
+        uint256 payoffAmount = nftFi.getPayoffAmount(loanId);
         IERC3156FlashBorrower receiver = IERC3156FlashBorrower(address(this));
-        address token = WETH_ADDR;
-        bytes memory flashLoanData = abi.encode(loanNumber);
+        bytes memory flashLoanData = abi.encode(loanId);
+
+        IERC3156FlashLender lender = IERC3156FlashLender(EULER_ADDR);
         lender.flashLoan(receiver, token, payoffAmount, flashLoanData);
 
-        // (5) if flashloan repayment is successful, then return the net proceeds to the caller
+        // (4) if flashloan repayment is successful, then return the net proceeds to the caller
+        if (address(this).balance > 0) {
+            payable(msg.sender).transfer(address(this).balance);
+        }
     }
 
-    // TODO: add a function to repay the original loan
-    function repayLoan(uint256 loanNumber) internal {}
+    function repayLoan(uint32 loanId) internal {
+        nftFi.payBackLoan(loanId);
+    }
 
     // TODO: add a function to sell the collateral to the reservoir api using the passed order
     function sellCollateral(
         ReservoirV6.ExecutionInfo[] calldata saleExecutionInfos
-    ) internal {}
+    ) internal {
+        // verify that the order is valid to sell the loan to
+        // verify that the order is worth more than the repayment amount.
+        reservoir.execute(saleExecutionInfos);
+    }
 }
