@@ -163,6 +163,8 @@ contract DirectLoanCoordinator is INFTFIDirectLoanCoordinator {
         bytes32 _loanType,
         uint256 loanId
     ) external override returns (uint32) {
+        loans[uint32(loanId)].loanContract = msg.sender;
+        loans[uint32(loanId)].smartNftId = uint64(loanId);
         return uint32(loanId);
     }
 
