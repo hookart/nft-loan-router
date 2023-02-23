@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.10;
+import "./INFTFIHub.sol";
 
 /**
  * @title  LoanData
@@ -214,6 +215,8 @@ interface LoanData {
 interface INftFiDirect {
     function LOAN_COORDINATOR() external returns (bytes32);
 
+    function hub() external returns (INftfiHub);
+
     function loanRepaidOrLiquidated(uint32) external view returns (bool);
 
     /**
@@ -252,4 +255,6 @@ interface INftFiDirect {
      * @param _loanId  A unique identifier for this particular loan, sourced from the Loan Coordinator.
      */
     function payBackLoan(uint32 _loanId) external;
+
+    function mintObligationReceipt(uint32 _loanId) external;
 }
