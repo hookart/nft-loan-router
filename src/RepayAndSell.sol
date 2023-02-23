@@ -13,6 +13,7 @@ contract RepayAndSellNftFi is Constants {
     INftFiDirect nftFi;
     INFTFIDirectLoanCoordinator coord;
     ReservoirV6 reservoir;
+    IERC3156FlashLender lender;
 
     constructor() {
         nftFi = INftFiDirect(NFTFI_DIRECT_LOAN_COORDINATOR_ADDR);
@@ -22,6 +23,7 @@ contract RepayAndSellNftFi is Constants {
             )
         );
         reservoir = ReservoirV6(RESERVOIR_V6_ADDR);
+        lender = IERC3156FlashLender(EULER_ADDR);
     }
 
     function repayAndSell(
@@ -52,9 +54,8 @@ contract RepayAndSellNftFi is Constants {
         // (3) flashloan some money to do the repayment (figure out how much from the loan contract?)
         uint256 payoffAmount = nftFi.getPayoffAmount(loanId);
         IERC3156FlashBorrower receiver = IERC3156FlashBorrower(address(this));
-        bytes memory flashLoanData = abi.encode(loanId);
+        bytes memory flashLoanData = abi.encode(loanId, saleExecutionInfos);
 
-        IERC3156FlashLender lender = IERC3156FlashLender(EULER_ADDR);
         lender.flashLoan(receiver, token, payoffAmount, flashLoanData);
 
         // (4) if flashloan repayment is successful, then return the net proceeds to the caller
