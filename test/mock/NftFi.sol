@@ -2,7 +2,6 @@
 pragma solidity ^0.8.5;
 
 import "../../src/external/nftfi/INftFiDirect.sol";
-import "../../src/external/nftfi/INftFiHub.sol";
 import "../../src/external/nftfi/INFTFIDirectLoanCoordinator.sol";
 import "solmate/tokens/ERC721.sol";
 import "solmate/tokens/ERC20.sol";
@@ -163,6 +162,8 @@ contract DirectLoanCoordinator is INFTFIDirectLoanCoordinator {
         bytes32 _loanType,
         uint256 loanId
     ) external override returns (uint32) {
+        loans[uint32(loanId)].loanContract = msg.sender;
+        loans[uint32(loanId)].smartNftId = uint64(loanId);
         return uint32(loanId);
     }
 
@@ -187,7 +188,8 @@ contract NftFiMock is INftFiDirect {
     uint256 private loanId = 0;
 
     bytes32 public immutable override LOAN_COORDINATOR;
-    INftfiHub public immutable hub;
+    INftfiHub public immutable override hub;
+
     // hub.getContract(LOAN_COORDINATOR);
 
     mapping(uint256 => LoanData.LoanTerms) private loans;
@@ -313,6 +315,10 @@ contract NftFiMock is INftFiDirect {
             loanId
         );
         promNote.mint(_signature.signer, loanId);
+    }
+
+    function mintObligationReceipt(uint32 _loanId) external {
+        //not impelemnted
     }
 
     /**
