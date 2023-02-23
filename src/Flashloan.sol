@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
-import "./external/euler-xyz/Interfaces.sol";
 import "./RepayAndSell.sol";
 
 contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
-    bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
+    // set the lender to the euler flashloan contract
+    IERC3156FlashLender internal constant lender =
+        IERC3156FlashLender(EULER_ADDR);
+
+    bytes32 public constant CALLBACK_SUCCESS =
+        keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     /// @notice The contract owner
     address public immutable owner;
@@ -30,15 +34,22 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         // receive flashloan
         require(msg.sender == address(EULER_ADDR), "untrusted lender");
         require(_initiator == address(this), "untrusted loan initiator");
-        (address underlying, uint256 amount) = abi.decode(
-            _data,
-            (address, uint256)
-        );
+
+        // Decode calldata to get NFTFi loanId and Reservoir saleExecutionInfos
+        (
+            uint32 tokenId,
+            ReservoirV6.ExecutionInfo[] calldata saleExecutionInfos
+        ) = abi.decode(_data, (uint32, ReservoirV6.ExecutionInfo[]));
 
         // execute logic
+        // (1) repay the original loan
+        repayLoan(tokenId);
+
+        // (2) sell the collateral to the reservoir api using the passed order
+        sellCollateral(saleExecutionInfos);
 
         // repay flashloan
-        IERC20(underlying).transfer(msg.sender, _amount);
+        _token.transfer(msg.sender, _amount);
 
         // return ERC-3156 success value
         return CALLBACK_SUCCESS;
