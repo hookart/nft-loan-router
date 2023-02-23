@@ -30,12 +30,16 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         // receive flashloan
         require(msg.sender == address(EULER_ADDR), "untrusted lender");
         require(_initiator == address(this), "untrusted loan initiator");
+        
+         // Decode calldata to get tokenIds, derivative address, function data
         (address underlying, uint256 amount) = abi.decode(
             _data,
             (address, uint256)
         );
 
         // execute logic
+        // (1) repay the original loan
+        // (2) sell the collateral to the reservoir api using the passed order
 
         // repay flashloan
         IERC20(underlying).transfer(msg.sender, _amount);
