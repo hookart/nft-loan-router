@@ -141,6 +141,7 @@ contract DirectLoanCoordinator is INFTFIDirectLoanCoordinator {
         onlyInitialized
     {
         // not implemented
+        NFTFIERC721(obligationReceiptToken).mint(msg.sender, _loanId);
     }
 
     /**
@@ -312,7 +313,6 @@ contract NftFiMock is INftFiDirect {
             loanId
         );
         promNote.mint(_signature.signer, loanId);
-        obligationReciept.mint(msg.sender, loanId);
     }
 
     /**
