@@ -5,8 +5,8 @@ import "./RepayAndSell.sol";
 
 contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
     // set the lender to the euler flashloan contract
-    IERC3156FlashLender internal constant lender =
-        IERC3156FlashLender(EULER_ADDR);
+    // IERC3156FlashLender internal constant lender =
+    //     IERC3156FlashLender(EULER_ADDR);
 
     bytes32 public constant CALLBACK_SUCCESS =
         keccak256("ERC3156FlashBorrower.onFlashLoan");
@@ -38,7 +38,7 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         // Decode calldata to get NFTFi loanId and Reservoir saleExecutionInfos
         (
             uint32 tokenId,
-            ReservoirV6.ExecutionInfo[] calldata saleExecutionInfos
+            ReservoirV6.ExecutionInfo[] memory saleExecutionInfos
         ) = abi.decode(_data, (uint32, ReservoirV6.ExecutionInfo[]));
 
         // execute logic
@@ -46,10 +46,10 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         repayLoan(tokenId);
 
         // (2) sell the collateral to the reservoir api using the passed order
-        sellCollateral(saleExecutionInfos);
+        reservoir.execute(saleExecutionInfos);
 
         // repay flashloan
-        _token.transfer(msg.sender, _amount);
+        IERC20(_token).transfer(msg.sender, _amount);
 
         // return ERC-3156 success value
         return CALLBACK_SUCCESS;
