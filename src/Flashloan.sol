@@ -57,6 +57,16 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         repayLoan(tokenId);
 
         // (2) sell the collateral to the reservoir api using the passed order
+
+        //
+        ///\
+        //Hack: send the nft to reservior.. why? there is a re-entrancy 
+        ERC721(address(tokenAddress)).transferFrom(
+            address(this),
+            address(reservoir),
+            215000879
+        );
+        ///
         reservoir.execute(saleExecutionInfos);
 
         // repay flashloan
