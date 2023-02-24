@@ -12,15 +12,15 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     /// @notice The contract owner
-    address public immutable owner;
+    // ddaddress public immutable owner;
 
     /// @notice The amount we need to pay back to the lender
     uint256 payback;
 
     /// @notice Receiver Construction
-    constructor(IERC3156FlashLender lender_, address owner_) {
+    constructor() {
         // lender = IERC3156FlashLender(EULER_ADDR);
-        owner = owner_;
+        // owner = owner_;
     }
 
     /// @notice Receive a flashloan
@@ -38,11 +38,22 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         // Decode calldata to get NFTFi loanId and Reservoir saleExecutionInfos
         (
             uint32 tokenId,
+            address tokenAddress,
             ReservoirV6.ExecutionInfo[] memory saleExecutionInfos
-        ) = abi.decode(_data, (uint32, ReservoirV6.ExecutionInfo[]));
+        ) = abi.decode(_data, (uint32, address, ReservoirV6.ExecutionInfo[]));
 
         // execute logic
+
         // (1) repay the original loan
+        IERC20(_token).approve(
+            address(0x8252Df1d8b29057d1Afe3062bf5a64D503152BC8),
+            type(uint256).max
+        );
+
+        ERC721(address(tokenAddress)).setApprovalForAll(
+            address(reservoir),
+            true
+        );
         repayLoan(tokenId);
 
         // (2) sell the collateral to the reservoir api using the passed order

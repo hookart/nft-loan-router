@@ -18,9 +18,7 @@ contract RepayAndSellNftFi is Constants {
     constructor() {
         nftFi = INftFiDirect(NFTFI_DIRECT_LOAN_COORDINATOR_ADDR);
         coord = INFTFIDirectLoanCoordinator(
-            INftfiHub(NFTFI_DIRECT_LOAN_COORDINATOR_ADDR).getContract(
-                nftFi.LOAN_COORDINATOR()
-            )
+            INftfiHub(nftFi.hub()).getContract(nftFi.LOAN_COORDINATOR())
         );
         reservoir = ReservoirV6(RESERVOIR_V6_ADDR);
         lender = IERC3156FlashLender(EULER_ADDR);
@@ -49,12 +47,20 @@ contract RepayAndSellNftFi is Constants {
         );
 
         // (2) verify that this contract address(this) is approved to move the borrower note
-        obligation.isApprovedForAll(msg.sender, address(this));
+        require(
+            obligation.isApprovedForAll(msg.sender, address(this)),
+            "we must be approved to move oblig note"
+        );
+        obligation.transferFrom(msg.sender, address(this), loanData.smartNftId);
 
         // (3) flashloan some money to do the repayment (figure out how much from the loan contract?)
         uint256 payoffAmount = nftFi.getPayoffAmount(loanId);
         IERC3156FlashBorrower receiver = IERC3156FlashBorrower(address(this));
-        bytes memory flashLoanData = abi.encode(loanId, saleExecutionInfos);
+        bytes memory flashLoanData = abi.encode(
+            loanId,
+            address(0xa7d8d9ef8D8Ce8992Df33D8b8CF4Aebabd5bD270),
+            saleExecutionInfos
+        );
 
         lender.flashLoan(receiver, token, payoffAmount, flashLoanData);
 
@@ -66,6 +72,15 @@ contract RepayAndSellNftFi is Constants {
 
     function repayLoan(uint32 loanId) internal {
         nftFi.payBackLoan(loanId);
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     // TODO: add a function to sell the collateral to the reservoir api using the passed order
