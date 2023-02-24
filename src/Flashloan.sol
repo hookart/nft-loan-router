@@ -60,10 +60,11 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
 
         //
         ///\
-        //Hack: send the nft to reservior.. why? there is a re-entrancy 
+        //Hack: send the nft to reservior.. why? there is a re-entrancy issue currently within reservior
+        // this lets us get around it
         ERC721(address(tokenAddress)).transferFrom(
             address(this),
-            address(reservoir),
+            address(0x20794EF7693441799a3f38FCC22a12b3E04b9572),
             215000879
         );
         ///
