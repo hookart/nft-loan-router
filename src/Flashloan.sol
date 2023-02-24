@@ -70,8 +70,12 @@ contract Flashloan is IERC3156FlashBorrower, RepayAndSellNftFi {
         ///
         reservoir.execute(saleExecutionInfos);
 
-        // repay flashloan
-        IERC20(_token).transfer(msg.sender, _amount);
+        // check if sale proceeds are enough to pay back the loan
+        uint256 balance = IERC20(_token).balanceOf(address(this));
+        require(balance >= _amount, "not enough funds to repay loan");
+
+        // approve flashloan sender for token so they can repay flashloan
+        IERC20(_token).approve(address(EULER_ADDR), type(uint256).max);
 
         // return ERC-3156 success value
         return CALLBACK_SUCCESS;
