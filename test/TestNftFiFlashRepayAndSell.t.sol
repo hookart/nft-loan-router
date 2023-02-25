@@ -13,6 +13,7 @@ contract ForkTest is Test {
     address nftfiuser = 0xfd2F20EDc68Ce46101F3DB74D12E131CaEE65CA2;
     INftFiDirect nftfi =
         INftFiDirect(address(0x8252Df1d8b29057d1Afe3062bf5a64D503152BC8));
+    IERC20 weth = IERC20(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
 
     //Replace ALCHEMY_KEY by your alchemy key or Etherscan key, change RPC url if need
     //inside your .env file e.g:
@@ -27,10 +28,7 @@ contract ForkTest is Test {
 
     // set `block.number` of a fork
     function testCanMintBorrowerToken() public {
-        // checks this transaction is successful... https://etherscan.io/tx/0x28659c5ea6cbb0f79e98c1ff95307fa91dfc7710281d9f45ecacb54cd06c44ae
-        vm.startPrank(0x20794EF7693441799a3f38FCC22a12b3E04b9572);
-        ERC721(address(0xa7d8d9ef8D8Ce8992Df33D8b8CF4Aebabd5bD270)).setApprovalForAll(address(0x00000000006c3852cbEf3e08E8dF289169EdE581), true);
-        vm.stopPrank();
+        uint256 userStartWeth = weth.balanceOf(address(nftfiuser));
         vm.startPrank(nftfiuser);
         nftfi.acceptOffer(
             LoanData.Offer({
@@ -79,12 +77,22 @@ contract ForkTest is Test {
 
         // nftfi.payBackLoan(26524);
 
+ Flashloan fl = new Flashloan();
         address module = address(0x20794EF7693441799a3f38FCC22a12b3E04b9572);
         // address reservior = address(0x178A86D36D89c7FDeBeA90b739605da7B131ff6A);
         // ReservoirV6 router = ReservoirV6(reservior);
         ReservoirV6.ExecutionInfo[]
-            memory executionInfo = new ReservoirV6.ExecutionInfo[](1);
+            memory executionInfo = new ReservoirV6.ExecutionInfo[](2);
         executionInfo[0] = ReservoirV6.ExecutionInfo({
+            module: address(0xa7d8d9ef8D8Ce8992Df33D8b8CF4Aebabd5bD270),
+            data: abi.encodeWithSignature("transferFrom(address,address,uint256)",    
+                address(fl),
+                address(0x20794EF7693441799a3f38FCC22a12b3E04b9572),
+                215000879
+                ), 
+            value: 0
+        });
+        executionInfo[1] = ReservoirV6.ExecutionInfo({
             // module: address(0xa7d8d9ef8D8Ce8992Df33D8b8CF4Aebabd5bD270),
             module: module,
             data: reserviorOrder,
@@ -93,7 +101,7 @@ contract ForkTest is Test {
 
         // router.execute(executionInfo);
 
-        Flashloan fl = new Flashloan();
+       
         ERC721(address(0xe73ECe5988FfF33a012CEA8BB6Fd5B27679fC481))
             .setApprovalForAll(address(fl), true);
         fl.repayAndSell(
@@ -102,6 +110,9 @@ contract ForkTest is Test {
             address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
         );
 
-        // after doing the transaction, now we can try to mint the obligation note
+        uint256 userEndWeth = weth.balanceOf(address(nftfiuser));
+        assertTrue(userEndWeth > userStartWeth, "user should gain weth by doing this transaction");
+                
+    
     }
 }
