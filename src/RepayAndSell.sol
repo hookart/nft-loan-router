@@ -6,22 +6,21 @@ import "./external/euler-xyz/Interfaces.sol";
 import "./external/nftfi/INFTFiDirect.sol";
 import "./external/nftfi/INFTFIDirectLoanCoordinator.sol";
 import "./external/nftfi/INFTFIHub.sol";
-import "../lib/solmate/src/tokens/ERC721.sol";
+import "solmate/tokens/ERC721.sol";
 import "./Constants.sol";
+import "./Flashloan.sol";
 
-contract RepayAndSellNftFi is Constants {
+contract RepayAndSell is Constants, Flashloan {
     INftFiDirect nftFi;
     INFTFIDirectLoanCoordinator coord;
     ReservoirV6 reservoir;
-    IERC3156FlashLender lender;
 
-    constructor() {
+    constructor(address flashLoanLender) Flashloan(flashLoanLender) {
         nftFi = INftFiDirect(NFTFI_DIRECT_LOAN_COORDINATOR_ADDR);
         coord = INFTFIDirectLoanCoordinator(
             INftfiHub(nftFi.hub()).getContract(nftFi.LOAN_COORDINATOR())
         );
         reservoir = ReservoirV6(RESERVOIR_V6_ADDR);
-        lender = IERC3156FlashLender(EULER_ADDR);
     }
 
     function repayAndSell(
@@ -55,19 +54,46 @@ contract RepayAndSellNftFi is Constants {
 
         // (3) flashloan some money to do the repayment (figure out how much from the loan contract?)
         uint256 payoffAmount = nftFi.getPayoffAmount(loanId);
-        IERC3156FlashBorrower receiver = IERC3156FlashBorrower(address(this));
         bytes memory flashLoanData = abi.encode(
             loanId,
             address(0xa7d8d9ef8D8Ce8992Df33D8b8CF4Aebabd5bD270),
             saleExecutionInfos
         );
 
-        lender.flashLoan(receiver, token, payoffAmount, flashLoanData);
+        flashLoan(token, payoffAmount, flashLoanData);
 
         // (4) if flashloan repayment is successful, then return the net proceeds to the caller
         if (address(this).balance > 0) {
             payable(msg.sender).transfer(address(this).balance);
         }
+    }
+
+    function internalExecuteRepayAndSell(
+        uint32 tokenId,
+        address tokenAddress,
+        ReservoirV6.ExecutionInfo[] memory saleExecutionInfos
+    ) internal override {
+        // (1) repay the original loan
+        IERC20(_token).approve(
+            address(0x8252Df1d8b29057d1Afe3062bf5a64D503152BC8),
+            type(uint256).max
+        );
+
+        ERC721(address(tokenAddress)).setApprovalForAll(
+            address(reservoir),
+            true
+        );
+
+        repayLoan(tokenId);
+
+        // (2) sell the collateral to the reservoir api using the passed order
+
+        // give reservior access to this token.
+        ERC721(address(tokenAddress)).setApprovalForAll(
+            address(reservoir),
+            true
+        );
+        reservoir.execute(saleExecutionInfos);
     }
 
     function repayLoan(uint32 loanId) internal {
