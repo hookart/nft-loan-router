@@ -2,8 +2,7 @@
 pragma solidity ^0.8.5;
 
 abstract contract Constants {
-    address internal constant EULER_ADDR =
-        0x07df2ad9878F8797B4055230bbAE5C808b8259b3;
+
 
     address internal constant WETH_ADDR =
         0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
